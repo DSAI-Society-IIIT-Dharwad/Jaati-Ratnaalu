@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Reel Counter",
+  "version": "1.0",
+  "description": "Just know how many reels you have scrolled till now.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "permissions": ["scripting", "activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/*", "*://www.instagram.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}
