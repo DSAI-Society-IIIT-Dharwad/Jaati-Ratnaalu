@@ -1,36 +1,134 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🔥 Real-time Trend & Sentiment Detection - Hackathon MVP
 
-## Getting Started
+A 2-3 hour hackathon project that scrapes live data, analyzes sentiment and topics using pre-trained AI models, and displays insights in a beautiful Next.js dashboard.
 
-First, run the development server:
+## ✨ Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- 📡 Scrapes live Twitter data (or uses sample data)
+- 🎭 Sentiment analysis using RoBERTa models
+- 🔍 Topic detection using BERTopic
+- 💾 Stores results in MongoDB Atlas
+- 📊 Beautiful real-time dashboard with Recharts
+- 🔄 Auto-refreshes every 10 seconds
+
+## 🚀 Quick Start (3 Steps)
+
+### 1️⃣ Set up MongoDB
+
+1. Go to [MongoDB Atlas](https://cloud.mongodb.com) (free tier available)
+2. Create a cluster and get your connection string
+3. Create a file `.env.local` in the project root:
+```env
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2️⃣ Run Python Analysis Script
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Run the analysis (set MONGO_URI as environment variable)
+# Windows:
+set MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/
+python analyze.py
 
-## Learn More
+# Mac/Linux:
+export MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/
+python analyze.py
+```
 
-To learn more about Next.js, take a look at the following resources:
+This will:
+- Scrape 200 tweets about AI
+- Analyze sentiment and topics
+- Store results in MongoDB
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3️⃣ Start Next.js Dashboard
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install  # If you haven't already
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000) to see your dashboard!
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📁 Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+├── app/
+│   ├── api/trends/route.ts    # Next.js API route (fetches from MongoDB)
+│   └── page.tsx                # Dashboard UI with charts
+├── analyze.py                  # Python script for data scraping & analysis
+├── requirements.txt            # Python dependencies
+└── package.json               # Node.js dependencies
+```
+
+## 🛠️ Tech Stack
+
+**Frontend:**
+- Next.js 16 (App Router)
+- Recharts for visualizations
+- TypeScript
+
+**Backend Analysis:**
+- Python
+- snscrape (Twitter scraping)
+- BERTopic (topic modeling)
+- Transformers (sentiment analysis)
+- pymongo (MongoDB)
+
+**Database:**
+- MongoDB Atlas
+
+## 🎯 How It Works
+
+1. **Python Script (`analyze.py`)**:
+   - Scrapes 200 tweets about AI/ML
+   - Analyzes sentiment using `cardiffnlp/twitter-roberta-base-sentiment`
+   - Detects topics using BERTopic
+   - Stores results in MongoDB
+
+2. **Next.js Dashboard**:
+   - Fetches data from MongoDB via API route
+   - Displays sentiment distribution (pie chart)
+   - Shows topic sentiment analysis (bar chart)
+   - Auto-refreshes every 10 seconds
+
+## 🚢 Deploy to Vercel
+
+1. Push to GitHub
+2. Import to [Vercel](https://vercel.com)
+3. Add `MONGO_URI` environment variable in Vercel settings
+4. Deploy!
+
+## 💡 Tips
+
+- First run might take a few minutes (downloading ML models)
+- If Twitter scraping fails, the script falls back to sample data
+- Update the query in `analyze.py` to analyze different topics
+- Schedule the Python script to run hourly (cron job, Render, Railway)
+
+## 📊 Next Steps (Optional Enhancements)
+
+- Add time-based filtering
+- Implement topic detail view
+- Add more data sources (Reddit, news APIs)
+- Real-time WebSocket updates
+- Export to CSV/PDF
+
+## ⚠️ Troubleshooting
+
+**"MONGO_URI not set" error:**
+- Create `.env.local` file with your MongoDB connection string
+
+**Import errors:**
+- Run `pip install -r requirements.txt`
+- Make sure you have Python 3.8+
+
+**No data showing:**
+- Run `python analyze.py` first to populate MongoDB
+- Check MongoDB Atlas for inserted documents
+
+---
+
+Built in ~3 hours for hackathon demo 🏆
