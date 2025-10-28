@@ -10,6 +10,9 @@ A 2-3 hour hackathon project that scrapes live data, analyzes sentiment and topi
 - 💾 Stores results in MongoDB Atlas
 - 📊 Beautiful real-time dashboard with Recharts
 - 🔄 Auto-refreshes every 10 seconds
+- 🔎 **NEW:** Keyword search with semantic similarity
+- 💬 **NEW:** Interactive chatbot assistant
+- 📈 **NEW:** Trending topic explorer with sentiment breakdown
 
 ## 🚀 Quick Start (3 Steps)
 
@@ -51,6 +54,27 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see your dashboard!
+
+## 🎯 New Features
+
+### 🔍 Topic Search
+Search for any keyword to find:
+- Related trending topics (with semantic similarity)
+- Sentiment breakdown per topic
+- Example mentions with relevance scores
+- Real-time sentiment analysis
+
+### 💬 Chatbot
+Ask natural language questions:
+- "What's the sentiment on AI?"
+- "Which topics are trending?"
+- "Show me positive topics"
+
+### 📊 Enhanced Dashboard
+- Descriptive topic names (not just "Topic 1")
+- Live data stream
+- Multi-chart visualization
+- Real-time updates
 
 ## 📁 Project Structure
 

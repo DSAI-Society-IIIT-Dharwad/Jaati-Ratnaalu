@@ -11,6 +11,11 @@ from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 from pymongo import MongoClient
+import torch
+
+# Check for GPU availability
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device} ({'GPU' if torch.cuda.is_available() else 'CPU'})")
 
 # Try to import snscrape (optional, has compatibility issues with Python 3.12)
 sntwitter = None
@@ -104,7 +109,7 @@ def get_sample_data() -> List[str]:
 def analyze_sentiment(texts: List[str]) -> List[Dict]:
     """Analyze sentiment using pre-trained BERT model"""
     print("Analyzing sentiment...")
-    sentiment_model = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
+    sentiment_model = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest", device=0 if torch.cuda.is_available() else -1)
     sentiments = []
     
     for i, text in enumerate(texts):
@@ -128,8 +133,8 @@ def detect_topics(texts: List[str]) -> tuple:
     """Detect topics using BERTopic"""
     print("Detecting topics...")
     
-    # Use lightweight embedding model for speed
-    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+    # Use lightweight embedding model for speed with GPU if available
+    embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
     
     # Initialize BERTopic with fewer topics for faster processing
     topic_model = BERTopic(
@@ -145,7 +150,7 @@ def detect_topics(texts: List[str]) -> tuple:
     return topics, topic_model
 
 
-def store_in_mongodb(posts: List[Dict], mongo_uri: str, database: str = "trenddb", collection: str = "posts"):
+def store_in_mongodb(posts: List[Dict], mongo_uri: str, database: str = "trenddb", collection: str = "posts", clear_old: bool = True):
     """Store analyzed data in MongoDB"""
     print(f"Storing data in MongoDB...")
     
@@ -154,8 +159,10 @@ def store_in_mongodb(posts: List[Dict], mongo_uri: str, database: str = "trenddb
         db = client[database]
         col = db[collection]
         
-        # Clear old data (optional, comment out if you want to keep history)
-        # col.delete_many({})
+        # Clear old data if requested
+        if clear_old:
+            deleted_count = col.delete_many({}).deleted_count
+            print(f"Cleared {deleted_count} old documents")
         
         # Insert new data
         result = col.insert_many(posts)
@@ -197,11 +204,28 @@ def main():
         for idx, row in topic_info.iterrows():
             topic_id = int(row['Topic'])
             topic_name = row['Name']
-            # Extract just the key terms (first few words)
+            # Keep full topic names without truncation
             if topic_name and isinstance(topic_name, str):
-                # Clean up the name - take first 5 words
-                words = topic_name.split()[:5]
-                topic_names[topic_id] = " ".join(words)
+                # Clean up the name - remove topic ID prefix (e.g., "0_ai_and_is" -> remove "0_")
+                # Remove the ID prefix like "7_" or "0_"
+                if topic_name and len(topic_name.split('_')) > 1:
+                    # Skip the first part (the ID)
+                    words = topic_name.split('_')[1:]
+                else:
+                    words = topic_name.split()
+                
+                # Keep ALL meaningful words, not just first 6
+                clean_words = [w for w in words if w and not w.isdigit()]
+                clean_name = " ".join(clean_words).title()
+                
+                # If still has numbers, remove them
+                clean_name = clean_name.replace("_", " ").strip()
+                
+                # Fallback if empty
+                if not clean_name:
+                    clean_name = f"Topic {topic_id}"
+                    
+                topic_names[topic_id] = clean_name
             else:
                 topic_names[topic_id] = f"Topic {topic_id}"
     except Exception as e:
@@ -232,12 +256,18 @@ def main():
         # Get topic name, default to "Topic X" if not found
         topic_name = topic_names.get(int(topic), f"Topic {topic}")
         
+        # Generate URL for the post (search link)
+        # Create a search-friendly version of the text for URL generation
+        url_keywords = " ".join(text.split()[:5])  # Use first 5 words as keywords
+        search_url = f"https://twitter.com/search?q={url_keywords.replace(' ', '%20')}"
+        
         docs.append({
             "text": text,
             "topic": int(topic),
             "topic_name": topic_name,
             "sentiment": sentiment_label,
             "score": float(sent["score"]),
+            "url": search_url,
             "timestamp": datetime.datetime.utcnow()
         })
     

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid } from "recharts";
 import TrendChatbot from "./components/TrendChatbot";
+import TopicSearch from "./components/TopicSearch";
 
 interface PostData {
   text: string;
@@ -18,6 +19,14 @@ interface TrendData {
   negative: number;
 }
 
+interface TrendingTopic {
+  text: string;
+  category: string;
+  source: string;
+  sentiment: string;
+  url: string;
+}
+
 const COLORS = ['#4ade80', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa'];
 
 export default function Home() {
@@ -25,6 +34,9 @@ export default function Home() {
   const [sentimentData, setSentimentData] = useState<{ name: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
+  const [loadingTrends, setLoadingTrends] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
@@ -59,7 +71,11 @@ export default function Home() {
                 posts.reduce((acc, post) => {
                   if (!post || !post.sentiment) return acc;
                   // Use topic_name if available, otherwise fallback to "Topic X"
-                  const topicKey = post.topic_name || `Topic ${post.topic}`;
+                  let topicKey = post.topic_name;
+                  if (!topicKey || topicKey.trim() === "") {
+                    // Fallback to topic ID
+                    topicKey = `Topic ${post.topic}`;
+                  }
                   if (!acc[topicKey]) {
                     acc[topicKey] = { topic: topicKey, positive: 0, negative: 0 };
                   }
@@ -110,6 +126,26 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch trending topics from Google News
+  useEffect(() => {
+    async function fetchTrendingTopics() {
+      try {
+        const response = await fetch("/api/all-trends");
+        const data = await response.json();
+        
+        if (data.topics && Array.isArray(data.topics)) {
+          setTrendingTopics(data.topics);
+        }
+        setLoadingTrends(false);
+      } catch (error) {
+        console.error("Error fetching trending topics:", error);
+        setLoadingTrends(false);
+      }
+    }
+    
+    fetchTrendingTopics();
+  }, []);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -147,6 +183,11 @@ export default function Home() {
           </p>
         </header>
 
+        {/* Search Section */}
+        <div className="mb-8">
+          <TopicSearch />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Sentiment Distribution Pie Chart */}
           <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6">
@@ -160,7 +201,7 @@ export default function Home() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -210,18 +251,45 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-                Live Data Stream
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                  Live Data Stream
+                </h2>
+                <button
+                  onClick={async () => {
+                    if (loading) return;
+                    setLoading(true);
+                    try {
+                      const response = await fetch("/api/run-analysis", { method: "POST" });
+                      const data = await response.json();
+                      if (data.status === "success") {
+                        alert(`✅ Analysis Complete!\n\nTopics: ${data.results.topics}\nProcessed: ${data.results.processed} posts\nPositive: ${data.results.positive}\nNegative: ${data.results.negative}`);
+                        // Refresh the dashboard data
+                        window.location.reload();
+                      }
+                    } catch (err) {
+                      alert("Error running analysis");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm"
+                >
+                  {loading ? "Running..." : "🔬 Run ML Analysis"}
+                </button>
+              </div>
               <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
                 {trendData.slice(0, 5).map((trend, idx) => (
-                  <div key={idx} className="p-3 bg-zinc-50 dark:bg-zinc-700 rounded">
-                    <div className="font-medium text-zinc-900 dark:text-zinc-50 text-sm">
+                  <div key={idx} className="p-4 bg-zinc-50 dark:bg-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors">
+                    <div className="font-semibold text-zinc-900 dark:text-zinc-50 text-base mb-2 break-words">
                       {typeof trend.topic === 'string' ? trend.topic : `Topic ${trend.topic}`}
                     </div>
-                    <div className="flex gap-4 mt-1 text-xs">
-                      <span className="text-green-600">✓ {trend.positive} positive</span>
-                      <span className="text-red-600">✗ {trend.negative} negative</span>
+                    <div className="flex gap-6 mt-2 text-sm">
+                      <span className="text-green-600 font-medium">✓ {trend.positive} positive</span>
+                      <span className="text-red-600 font-medium">✗ {trend.negative} negative</span>
+                      <span className="text-zinc-600 dark:text-zinc-400">
+                        {trend.positive + trend.negative} total posts
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -254,6 +322,78 @@ export default function Home() {
               {sentimentData.find(s => s.name === "Negative")?.value || 0}
             </div>
           </div>
+        </div>
+
+        {/* Trending Topics Section */}
+        <div className="mt-8 bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+              🌐 Trending Topics from Internet
+            </h2>
+            {loadingTrends && (
+              <div className="text-sm text-zinc-600 dark:text-zinc-400">Loading...</div>
+            )}
+          </div>
+          
+          {loadingTrends ? (
+            <div className="text-center py-8 text-zinc-600 dark:text-zinc-400">
+              Fetching trending topics...
+            </div>
+          ) : trendingTopics.length > 0 ? (
+            <div className="space-y-4">
+              {trendingTopics.map((topic, idx) => (
+                <div 
+                  key={idx}
+                  className="p-4 bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-700 dark:to-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
+                          #{idx + 1}
+                        </span>
+                        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700 px-2 py-1 rounded">
+                          {topic.category}
+                        </span>
+                        {topic.sentiment === "POSITIVE" && (
+                          <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded">
+                            📈 Positive
+                          </span>
+                        )}
+                        {topic.sentiment === "NEGATIVE" && (
+                          <span className="text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded">
+                            📉 Negative
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mb-2 leading-relaxed">
+                        {topic.text}
+                      </h3>
+                      <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        <span className="font-medium">{topic.source}</span>
+                        <span>•</span>
+                        <a 
+                          href={topic.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                        >
+                          Read More
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-zinc-600 dark:text-zinc-400">
+              No trending topics available at the moment.
+            </div>
+          )}
         </div>
 
         <footer className="mt-8 text-center text-sm text-zinc-500">
