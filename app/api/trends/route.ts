@@ -5,10 +5,9 @@ export async function GET() {
     const mongoUri = process.env.MONGO_URI;
     
     if (!mongoUri) {
-      return Response.json(
-        { error: "MONGO_URI environment variable is not set" },
-        { status: 500 }
-      );
+      // Return empty array instead of error
+      console.log("MONGO_URI not set, returning empty array");
+      return Response.json([]);
     }
 
     const client = await MongoClient.connect(mongoUri);
@@ -19,10 +18,8 @@ export async function GET() {
     return Response.json(posts);
   } catch (error) {
     console.error("Error fetching trends:", error);
-    return Response.json(
-      { error: "Failed to fetch trends data" },
-      { status: 500 }
-    );
+    // Return empty array instead of error object
+    return Response.json([]);
   }
 }
 

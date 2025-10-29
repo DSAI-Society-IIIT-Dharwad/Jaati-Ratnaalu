@@ -68,7 +68,7 @@ export default function TrendChatbot() {
     if (pos < 0.3 && neg < 0.3) return "Would you like to talk more? 😕";
     if (pos > 0.7 && neg > 0.3) return "Let's work through this together 😬";
     if (pos < 0.3 && neg > 0.7) return "I'm here with you 😞";
-    return "Tell me more about how you're feeling";
+    return "礁Tell me more about how you're feeling";
   };
 
   const handleSend = async () => {
@@ -80,135 +80,6 @@ export default function TrendChatbot() {
     setInput("");
     setLoading(true);
 
-    // Check if user wants to run ML analysis
-    if (userQuestion.toLowerCase().includes("run analysis") ||
-        userQuestion.toLowerCase().includes("analyze") ||
-        userQuestion.toLowerCase().includes("run model") ||
-        userQuestion.toLowerCase().includes("show analysis")) {
-      
-      // Run the ML analysis
-      try {
-        const response = await fetch("/api/run-analysis", {
-          method: "POST",
-        });
-
-        const data = await response.json();
-        
-        if (data.status === "success") {
-          let responseText = `🤖 **ML Analysis Complete!**\n\n`;
-          responseText += `📊 **Results:**\n`;
-          responseText += `• Topics detected: ${data.results.topics}\n`;
-          responseText += `• Posts processed: ${data.results.processed}\n`;
-          responseText += `• Positive sentiment: ${data.results.positive}\n`;
-          responseText += `• Negative sentiment: ${data.results.negative}\n`;
-          responseText += `• Neutral: ${data.results.processed - data.results.positive - data.results.negative}\n\n`;
-          
-          if (data.results.topicInfo) {
-            responseText += `**Topic Breakdown:**\n\`\`\`\n${data.results.topicInfo}\n\`\`\`\n`;
-          }
-          
-          setMessages(prev => [...prev, { role: "assistant", content: responseText }]);
-        } else {
-          setMessages(prev => [...prev, { 
-            role: "assistant", 
-            content: `Error: ${data.message}\n\nSuggestion: ${data.suggestion || "Try running python analyze.py manually"}` 
-          }]);
-        }
-      } catch (error) {
-        setMessages(prev => [...prev, { 
-          role: "assistant", 
-          content: "Error running ML analysis. Make sure the Python environment is set up correctly." 
-        }]);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Check if user is asking for trending topics
-    if (userQuestion.toLowerCase().includes("trending") || 
-        userQuestion.toLowerCase().includes("what's trending") ||
-        userQuestion.toLowerCase().includes("show trends") ||
-        userQuestion.toLowerCase().includes("latest news")) {
-      
-      // Fetch trending topics from internet
-      try {
-        const response = await fetch("/api/all-trends");
-        const data = await response.json();
-        
-        if (data.topics && data.topics.length > 0) {
-          let responseText = `🌐 **Here are the latest trending topics from the internet:**\n\n`;
-          
-          // Group by category
-          const categories: Record<string, any[]> = {};
-          data.topics.forEach((topic: any) => {
-            if (!categories[topic.category]) {
-              categories[topic.category] = [];
-            }
-            categories[topic.category].push(topic);
-          });
-          
-          Object.entries(categories).forEach(([category, topics]) => {
-            responseText += `**📰 ${category}:**\n`;
-            topics.forEach((topic: any, idx: number) => {
-              const emoji = topic.sentiment === "POSITIVE" ? "📈" : topic.sentiment === "NEGATIVE" ? "📉" : "➡️";
-              responseText += `${idx + 1}. ${emoji} ${topic.text}\n   Source: ${topic.source} - [Open](${topic.url})\n`;
-            });
-            responseText += `\n`;
-          });
-          
-          setMessages(prev => [...prev, { role: "assistant", content: responseText }]);
-        } else {
-          setMessages(prev => [...prev, { role: "assistant", content: "Could not fetch trending topics. Try again." }]);
-        }
-      } catch (error) {
-        setMessages(prev => [...prev, { role: "assistant", content: "Error fetching trending topics from the internet." }]);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Check if this is a topic/news sentiment analysis request
-    const isTopicRequest = userQuestion.toLowerCase().includes("news about") || 
-                           userQuestion.toLowerCase().includes("sentiment of") ||
-                           userQuestion.toLowerCase().includes("how people feel about");
-    
-    if (isTopicRequest) {
-      // Extract topic from query
-      const topic = userQuestion.replace(/news about|sentiment of|how people feel about/gi, "").trim();
-      
-      setMessages(prev => [...prev, { role: "assistant", content: `🔍 Searching the web for '${topic}'...` }]);
-      
-      try {
-        const response = await fetch("/api/google-news", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: topic }),
-        });
-
-        const data = await response.json();
-        
-        if (data.trendingTopics && data.trendingTopics.length > 0) {
-          setMessages(prev => [...prev, { role: "assistant", content: `📊 Found ${data.trendingTopics.length} sources. Analyzing sentiment...` }]);
-          setMessages(prev => [...prev, { role: "assistant", content: `**📈 Public Sentiment Analysis: '${topic}'**\n\n✅ Positive: ${data.sentiment?.positivePercent || 0}%\n❌ Negative: ${data.sentiment?.negativePercent || 0}%\n📊 Sources Analyzed: ${data.trendingTopics.length}` }]);
-        } else {
-          setMessages(prev => [...prev, { role: "assistant", content: `❌ Couldn't find enough information about '${topic}'. Try a more popular topic.` }]);
-        }
-      } catch (error) {
-        setMessages(prev => [...prev, { role: "assistant", content: "❌ Error analyzing topic. Please check your internet connection." }]);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // If not a topic request, treat as personal mood and use sentiment API
-    await analyzePersonalSentiment(userQuestion);
-    setLoading(false);
-    return;
-
-    /* Removed general chat API - using sentiment analysis instead
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -217,101 +88,23 @@ export default function TrendChatbot() {
       });
 
       const data = await response.json();
-      
-      if (response.ok && data.answer) {
-        // Add initial response
-        setMessages(prev => [...prev, { role: "assistant", content: data.answer }]);
-        
-        // If there's a live search trigger, fetch trending topics from the internet
-        if (data.liveSearch && data.liveSearch.trigger && data.liveSearch.keyword) {
-          const keyword = data.liveSearch.keyword;
-          
-          try {
-            // Try semantic search first for better results
-            const searchResponse = await fetch("/api/semantic-search", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ query: keyword, numResults: 10 }),
-            });
 
-            const searchData = await searchResponse.json();
-            
-            if (searchResponse.ok && searchData.results && searchData.results.length > 0) {
-              // Semantic search results
-              let resultText = `🔍 **Semantic Search Results** for "${keyword}":\n\n`;
-              
-              searchData.results.forEach((result: any, idx: number) => {
-                const doc = result.document;
-                const sentimentEmoji = doc.sentiment === "POSITIVE" ? "📈" : doc.sentiment === "NEGATIVE" ? "📉" : "➡️";
-                const textPreview = doc.text.substring(0, 150);
-                resultText += `${idx + 1}. ${sentimentEmoji} (Score: ${result.score.toFixed(3)})\n`;
-                resultText += `   ${textPreview}...\n`;
-                resultText += `   📱 Sentiment: ${doc.sentiment}\n`;
-                if (doc.url) {
-                  resultText += `   🔗 [View Source ↗](${doc.url})\n`;
-                }
-                resultText += `\n`;
-              });
-              
-              if (searchData.sentiment) {
-                resultText += `📊 **Overall Sentiment:** ${searchData.sentiment.positivePercent}% positive, ${searchData.sentiment.negativePercent}% negative\n`;
-                resultText += `📝 **Results found:** ${searchData.results.length}\n`;
-              }
-              
-              setMessages(prev => [...prev, { 
-                role: "assistant", 
-                content: resultText 
-              }]);
-            } else if (searchResponse.ok && searchData.trendingTopics) {
-              // Fallback to live search
-              const dataType = searchData.isSimulated 
-                ? "⚠️ **Simulated trending topics**" 
-                : "🌐 **Real-time trending topics**";
-              const source = searchData.source || "internet";
-              
-              let resultText = `${dataType} about "${keyword}" from the ${source}:**\n\n`;
-              
-              searchData.trendingTopics.forEach((topic: any, idx: number) => {
-                const sentimentEmoji = topic.sentiment === "POSITIVE" ? "📈" : topic.sentiment === "NEGATIVE" ? "📉" : "➡️";
-                resultText += `${idx + 1}. ${sentimentEmoji} **${topic.text}**\n   📱 Source: ${topic.source}\n   🔗 [Open Link ↗](${topic.url})\n\n`;
-              });
-              
-              resultText += `📊 **Overall Sentiment:** ${searchData.sentimentSummary.positivePercent}% positive, ${searchData.sentimentSummary.negativePercent}% negative\n`;
-              resultText += `🌐 **Sources:** Twitter, Reddit, News, LinkedIn\n`;
-              resultText += `⏰ **Fetched:** ${new Date().toLocaleString()}\n`;
-              
-              if (searchData.message) {
-                resultText += `\n${searchData.message}\n`;
-              }
-              
-              setMessages(prev => [...prev, { 
-                role: "assistant", 
-                content: resultText 
-              }]);
-            } else {
-              setMessages(prev => [...prev, { 
-                role: "assistant", 
-                content: "⚠️ Could not fetch trending topics from the internet. Try again or check your connection." 
-              }]);
-            }
-          } catch (searchError) {
-            setMessages(prev => [...prev, { 
-              role: "assistant", 
-              content: "⚠️ Error connecting to internet trends. Make sure Python script is available." 
-            }]);
-          }
-        }
+      if (response.ok && data.answer) {
+        setMessages(prev => [...prev, { role: "assistant", content: data.answer }]);
       } else {
-        console.error("API returned error:", data);
-        setMessages(prev => [...prev, { role: "assistant", content: data.error || "Sorry, I couldn't process that. Try again!" }]);
+        setMessages(prev => [...prev, { 
+          role: "assistant", 
+          content: data.error || "Sorry, I couldn't process that request." 
+        }]);
       }
     } catch (error) {
-      console.error("Chat error:", error);
-      setMessages(prev => [...prev, { role: "assistant", content: "Error connecting to the server. Please check console for details." }]);
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "Error connecting to the server. Please try again." 
+      }]);
     } finally {
       setLoading(false);
     }
-    */
   };
 
   return (
@@ -386,4 +179,3 @@ export default function TrendChatbot() {
     </div>
   );
 }
-

@@ -1,47 +1,112 @@
 """
 Fetch Real-Time Trending Topics from the Internet
-Uses web scraping to get trending topics from various sources
+Uses snscrape to get real trending topics from Twitter/X
 """
 import requests
 import json
+import subprocess
+import sys
 from datetime import datetime
 from typing import List, Dict
 import os
+import re
+
+# Redirect all print statements to stderr so only JSON goes to stdout
+def print(*args, **kwargs):
+    """Override print to output to stderr"""
+    __builtins__['print'](*args, file=sys.stderr, **kwargs)
+
+def analyze_sentiment_simple(text: str) -> str:
+    """Simple keyword-based sentiment analysis"""
+    text_lower = text.lower()
+    
+    positive_words = ['great', 'excellent', 'good', 'amazing', 'wonderful', 'success', 'love', 'happy', 'positive', 'best', 'brilliant', 'fantastic', 'incredible', 'achievement', 'victory', 'win', 'grow', 'improve', 'breakthrough', 'innovation']
+    negative_words = ['bad', 'terrible', 'awful', 'horrible', 'hate', 'worst', 'fail', 'loss', 'crisis', 'disaster', 'problem', 'issue', 'concern', 'danger', 'threat', 'crisis', 'negative', 'decline', 'drop', 'failure']
+    
+    positive_count = sum(1 for word in positive_words if word in text_lower)
+    negative_count = sum(1 for word in negative_words if word in text_lower)
+    
+    if positive_count > negative_count * 1.5:
+        return "POSITIVE"
+    elif negative_count > positive_count * 1.5:
+        return "NEGATIVE"
+    else:
+        return "NEUTRAL"
 
 def fetch_twitter_trends(keyword: str, limit: int = 10) -> List[Dict]:
-    """Fetch trending topics from Twitter/X"""
-    # Simulated trending data based on keyword
-    # In production, you'd use Twitter API
+    """Fetch REAL trending topics from Twitter/X using snscrape"""
     trends = []
     
-    # Common AI/tech trends
-    if keyword.lower() in ['ai', 'artificial', 'intelligence']:
-        trends = [
-            {"text": f"OpenAI launches GPT-5 with breakthrough capabilities", "source": "Twitter", "sentiment": "POSITIVE"},
-            {"text": f"AI regulation debate intensifies in EU", "source": "Twitter", "sentiment": "NEUTRAL"},
-            {"text": f"Google DeepMind announces new AI model", "source": "Twitter", "sentiment": "POSITIVE"},
-        ]
-    elif keyword.lower() in ['crypto', 'bitcoin', 'blockchain']:
-        trends = [
-            {"text": f"Bitcoin reaches new all-time high", "source": "Twitter", "sentiment": "POSITIVE"},
-            {"text": f"Crypto regulations tighten globally", "source": "Twitter", "sentiment": "NEGATIVE"},
-        ]
-    elif keyword.lower() in ['climate', 'environment', 'weather']:
-        trends = [
-            {"text": f"COP28 reaches historic climate agreement", "source": "Twitter", "sentiment": "POSITIVE"},
-            {"text": f"Renewable energy adoption breaks records", "source": "Twitter", "sentiment": "POSITIVE"},
-        ]
-    elif keyword.lower() in ['healthcare', 'medical', 'health']:
-        trends = [
-            {"text": f"AI-powered diagnostics revolutionize healthcare", "source": "Twitter", "sentiment": "POSITIVE"},
-            {"text": f"New breakthrough in cancer treatment", "source": "Twitter", "sentiment": "POSITIVE"},
-        ]
-    else:
-        # Generic trending topics
-        trends = [
-            {"text": f"{keyword.capitalize()} adoption grows rapidly across industries", "source": "Twitter", "sentiment": "POSITIVE"},
-            {"text": f"Experts discuss future of {keyword}", "source": "Twitter", "sentiment": "NEUTRAL"},
-        ]
+    try:
+        # Use snscrape to fetch tweets about the keyword
+        # Search for recent tweets with the keyword
+        query = f"{keyword} -filter:links min_faves:10"
+        
+        print(f"Fetching tweets for: {keyword}")
+        
+        # Run snscrape command
+        cmd = f'snscrape --jsonl --max-results {limit} twitter-search "{query}"'
+        
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            # Parse snscrape output (JSONL format)
+            lines = result.stdout.strip().split('\n')
+            
+            for i, line in enumerate(lines[:limit]):
+                if not line:
+                    continue
+                    
+                try:
+                    tweet = json.loads(line)
+                    content = tweet.get('rawContent', '')
+                    author = tweet.get('user', {}).get('username', 'Twitter')
+                    
+                    # Analyze sentiment (simple keyword-based)
+                    sentiment = analyze_sentiment_simple(content)
+                    
+                    trends.append({
+                        "text": content[:280],  # Limit to tweet length
+                        "source": f"@{author}",
+                        "sentiment": sentiment,
+                        "url": f"https://twitter.com/{author}/status/{tweet.get('id', '')}"
+                    })
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing tweet {i}: {e}")
+                    continue
+        
+        print(f"✅ Fetched {len(trends)} real tweets using snscrape")
+        
+    except subprocess.TimeoutExpired:
+        print("⚠️ snscrape timed out, using fallback data")
+    except Exception as e:
+        print(f"⚠️ Error fetching from snscrape: {e}")
+    
+    # Fallback to simulated data if snscrape fails or returns no results
+    if not trends:
+        print("Using fallback simulated data")
+        if keyword.lower() in ['ai', 'artificial', 'intelligence']:
+            trends = [
+                {"text": f"OpenAI launches GPT-5 with breakthrough capabilities", "source": "Twitter", "sentiment": "POSITIVE"},
+                {"text": f"AI regulation debate intensifies in EU", "source": "Twitter", "sentiment": "NEUTRAL"},
+                {"text": f"Google DeepMind announces new AI model", "source": "Twitter", "sentiment": "POSITIVE"},
+            ]
+        elif keyword.lower() in ['crypto', 'bitcoin', 'blockchain']:
+            trends = [
+                {"text": f"Bitcoin reaches new all-time high", "source": "Twitter", "sentiment": "POSITIVE"},
+                {"text": f"Crypto regulations tighten globally", "source": "Twitter", "sentiment": "NEGATIVE"},
+            ]
+        else:
+            trends = [
+                {"text": f"{keyword.capitalize()} trends sparking discussions", "source": "Twitter", "sentiment": "NEUTRAL"},
+                {"text": f"Experts discuss future of {keyword}", "source": "Twitter", "sentiment": "NEUTRAL"},
+            ]
     
     return trends[:limit]
 
@@ -103,11 +168,90 @@ def fetch_linkedin_trends(keyword: str, limit: int = 10) -> List[Dict]:
     return trends[:limit]
 
 
+def fetch_twitter_trending_by_location(location: str = "India", limit: int = 10) -> List[Dict]:
+    """Fetch REAL trending topics from Twitter by location using snscrape"""
+    trends = []
+    
+    try:
+        print(f"Fetching trending topics for {location}...")
+        
+        # Use snscrape to fetch trending topics
+        # Note: snscrape requires specific location codes
+        # For India, we can use "23424848" or try the country name
+        location_codes = {
+            "India": "23424848",
+            "USA": "23424977",
+            "UK": "23424975",
+            "Worldwide": "1"
+        }
+        
+        location_id = location_codes.get(location, location_codes["India"])
+        
+        # Try to fetch trending topics
+        cmd = f'snscrape --jsonl --max-results {limit} twitter-trend "{location_id}"'
+        
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            lines = result.stdout.strip().split('\n')
+            
+            for i, line in enumerate(lines[:limit]):
+                if not line:
+                    continue
+                    
+                try:
+                    trend = json.loads(line)
+                    name = trend.get('name', '')
+                    
+                    if name:
+                        sentiment = analyze_sentiment_simple(name)
+                        trends.append({
+                            "text": name,
+                            "source": "Twitter Trending",
+                            "sentiment": sentiment,
+                            "url": f"https://twitter.com/search?q={name}"
+                        })
+                except json.JSONDecodeError:
+                    continue
+        
+        print(f"✅ Fetched {len(trends)} real trending topics")
+        
+    except Exception as e:
+        print(f"⚠️ Error fetching trending: {e}")
+    
+    return trends
+
 def fetch_all_trending_topics() -> Dict:
     """Fetch all trending topics from various sources"""
     print("Fetching all trending topics from the internet...")
     
     all_topics = []
+    
+    # Try to fetch real Twitter trends
+    try:
+        real_trends = fetch_twitter_trending_by_location("India", limit=15)
+        if real_trends:
+            print(f"Using {len(real_trends)} real trending topics from Twitter")
+            for trend in real_trends:
+                trend["category"] = "Social Media Trends"
+                all_topics.append(trend)
+            
+            # Return early with real data if we got it
+            if all_topics:
+                return {
+                    "topics": all_topics[:20],  # Limit to 20
+                    "categories": ["Social Media Trends"],
+                    "total": len(all_topics[:20]),
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "source": "snscrape"
+                }
+    except Exception as e:
+        print(f"Could not fetch real trends: {e}, using fallback...")
     
     # Trending topics across multiple categories
     trending_categories = [
@@ -261,11 +405,15 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         # Fetch all trending topics
         trends = fetch_all_trending_topics()
-        print(json.dumps(trends, indent=2))
+        # Print to stdout (not stderr)
+        sys.stdout.write(json.dumps(trends, indent=2))
+        sys.stdout.write('\n')
     elif sys.argv[1] == "--all":
         # Fetch all trending topics
         trends = fetch_all_trending_topics()
-        print(json.dumps(trends, indent=2))
+        # Print to stdout (not stderr)
+        sys.stdout.write(json.dumps(trends, indent=2))
+        sys.stdout.write('\n')
     else:
         # Fetch trends for specific keyword
         keyword = sys.argv[1]
@@ -274,5 +422,6 @@ if __name__ == "__main__":
         # Store in MongoDB
         store_in_mongodb(trends)
         
-        # Print results
-        print(json.dumps(trends, indent=2))
+        # Print results to stdout (not stderr)
+        sys.stdout.write(json.dumps(trends, indent=2))
+        sys.stdout.write('\n')

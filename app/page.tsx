@@ -47,8 +47,33 @@ export default function Home() {
           throw new Error("Failed to fetch data");
         }
         const posts: PostData[] = await res.json();
+        
+        // Handle null/undefined response
+        if (!posts || !Array.isArray(posts)) {
+          console.warn("API returned invalid data:", posts);
+          setTrendData([]);
+          setSentimentData([
+            { name: "Positive", value: 0 },
+            { name: "Neutral", value: 0 },
+            { name: "Negative", value: 0 },
+          ]);
+          setLoading(false);
+          return;
+        }
 
         // Check if we have any data
+        if (!Array.isArray(posts)) {
+          console.warn("API returned non-array data:", posts);
+          setTrendData([]);
+          setSentimentData([
+            { name: "Positive", value: 0 },
+            { name: "Neutral", value: 0 },
+            { name: "Negative", value: 0 },
+          ]);
+          setLoading(false);
+          return;
+        }
+        
         if (!posts || posts.length === 0) {
           setLoading(false);
           return;
@@ -67,13 +92,13 @@ export default function Home() {
 
         // Group by topic and sentiment
         const grouped =
-          posts && posts.length > 0
+          posts && Array.isArray(posts) && posts.length > 0
             ? Object.values(
                 posts.reduce((acc, post) => {
                   if (!post || !post.sentiment) return acc;
                   // Use topic_name if available, otherwise fallback to "Topic X"
                   let topicKey = post.topic_name;
-                  if (!topicKey || topicKey.trim() === "") {
+                  if (!topicKey || (typeof topicKey === 'string' && topicKey.trim() === "")) {
                     // Fallback to topic ID
                     topicKey = `Topic ${post.topic}`;
                   }
@@ -93,7 +118,7 @@ export default function Home() {
 
         // Calculate overall sentiment distribution (include neutral as its own category)
         const sentimentCounts =
-          posts && posts.length > 0
+          posts && Array.isArray(posts) && posts.length > 0
             ? posts.reduce((acc, post) => {
                 if (!post || !post.sentiment) return acc;
                 let key;
@@ -335,21 +360,52 @@ export default function Home() {
                 </div>
               )}
               
-              <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
-                {trendData.slice(0, 5).map((trend, idx) => (
-                  <div key={idx} className="p-4 bg-zinc-50 dark:bg-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors">
-                    <div className="font-semibold text-zinc-900 dark:text-zinc-50 text-base mb-2 break-words">
-                      {typeof trend.topic === 'string' ? trend.topic : `Topic ${trend.topic}`}
+              <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-2 max-h-[600px] overflow-y-auto">
+                {trendData.map((trend, idx) => {
+                  // Format topic name - limit to reasonable length and fix capitalization
+                  let displayName = typeof trend.topic === 'string' ? trend.topic : `Topic ${trend.topic}`;
+                  
+                  // If name is too long, truncate it nicely
+                  if (displayName.length > 60) {
+                    displayName = displayName.substring(0, 57) + "...";
+                  }
+                  
+                  return (
+                    <div key={idx} className="p-4 bg-zinc-50 dark:bg-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors border border-zinc-200 dark:border-zinc-600">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-50 text-base mb-2 leading-snug">
+                            {displayName}
+                          </div>
+                          <div className="flex gap-4 mt-3 text-sm">
+                            <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                              </svg>
+                              {trend.positive} positive
+                            </span>
+                            <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                              </svg>
+                              {trend.negative} negative
+                            </span>
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                                <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
+                              </svg>
+                              {trend.positive + trend.negative} total
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex gap-6 mt-2 text-sm">
-                      <span className="text-green-600 font-medium">✓ {trend.positive} positive</span>
-                      <span className="text-red-600 font-medium">✗ {trend.negative} negative</span>
-                      <span className="text-zinc-600 dark:text-zinc-400">
-                        {trend.positive + trend.negative} total posts
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -396,9 +452,10 @@ export default function Home() {
             <div className="text-center py-8 text-zinc-600 dark:text-zinc-400">
               Fetching trending topics...
             </div>
-          ) : trendingTopics.length > 0 ? (
+          ) : Array.isArray(trendingTopics) && trendingTopics.length > 0 ? (
             <div className="space-y-4">
               {trendingTopics.map((topic, idx) => (
+                topic && typeof topic === 'object' ? (
                 <div 
                   key={idx}
                   className="p-4 bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-700 dark:to-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:shadow-md transition-all duration-200"
@@ -410,7 +467,7 @@ export default function Home() {
                           #{idx + 1}
                         </span>
                         <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700 px-2 py-1 rounded">
-                          {topic.category}
+                          {topic.category || 'Unknown'}
                         </span>
                         {topic.sentiment === "POSITIVE" && (
                           <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded">
@@ -424,13 +481,13 @@ export default function Home() {
                         )}
                       </div>
                       <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mb-2 leading-relaxed">
-                        {topic.text}
+                        {topic.text || 'No title'}
                       </h3>
                       <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        <span className="font-medium">{topic.source}</span>
+                        <span className="font-medium">{topic.source || 'Unknown'}</span>
                         <span>•</span>
                         <a 
-                          href={topic.url} 
+                          href={topic.url || '#'} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
@@ -444,6 +501,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+                ) : null
               ))}
             </div>
           ) : (
