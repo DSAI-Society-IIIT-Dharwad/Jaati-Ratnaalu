@@ -1,9 +1,32 @@
 import { NextResponse } from "next/server";
-import { analyzeSentiment as analyzeSentimentTS } from "@/app/utils/sentiment";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 async function analyzeSentiment(text: string): Promise<string> {
-  const result = analyzeSentimentTS(text);
-  return result.sentiment;
+  try {
+    // Use the enhanced Python classifier with the working model
+    const escapedText = text.replace(/"/g, '\\"').replace(/\$/g, '\\$');
+    const { stdout } = await execAsync(
+      `python enhanced_sentiment_classifier.py "${escapedText}"`,
+      { maxBuffer: 1024 * 1024 }
+    );
+    
+    const result = JSON.parse(stdout.trim());
+    const positive = result.positive || 0;
+    const negative = result.negative || 0;
+    
+    // Determine sentiment label based on scores
+    if (positive > 0.6 && positive > negative) return "POSITIVE";
+    if (negative > 0.6 && negative > positive) return "NEGATIVE";
+    return "NEUTRAL";
+  } catch (error) {
+    // Fallback to TypeScript sentiment analysis
+    const sentimentModule = await import("@/app/utils/sentiment");
+    const result = sentimentModule.analyzeSentiment(text);
+    return result.sentiment;
+  }
 }
 
 export async function POST(request: Request) {
