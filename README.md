@@ -160,3 +160,8 @@ Ask natural language questions:
 ---
 
 Built in ~3 hours for hackathon demo 🏆
+
+
+#Screeenshots
+
+![Dashboard Screenshot](prev)
