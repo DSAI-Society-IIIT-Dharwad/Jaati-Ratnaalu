@@ -351,3 +351,4 @@ results = search_similar_documents("AI safety concerns", mongo_uri)
 - [Sentence Transformers](https://www.sbert.net/)
 - [MongoDB Atlas](https://www.mongodb.com/atlas)
 
+

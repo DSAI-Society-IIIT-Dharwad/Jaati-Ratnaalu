@@ -27,32 +27,37 @@ except (ImportError, AttributeError):
     print("Using sample data instead")
 
 
-def scrape_twitter_data(query: str, limit: int = 200) -> List[str]:
-    """Scrape tweets from Twitter using snscrape"""
+def scrape_twitter_data(queries: List[str], limit: int = 500) -> List[str]:
+    """Scrape tweets from Twitter using snscrape with multiple queries"""
     if sntwitter is None:
-        print("Using sample data (snscrape not available)")
-        return get_sample_data()
+        print("Using expanded sample data (snscrape not available)")
+        return get_expanded_sample_data()
     
-    print(f"Scraping tweets with query: {query}")
-    data = []
-    try:
-        for i, tweet in enumerate(sntwitter.TwitterSearchScraper(query).get_items()):
-            if i >= limit:
-                break
-            data.append(tweet.rawContent)
-            if (i + 1) % 50 == 0:
-                print(f"   Scraped {i + 1} tweets...")
-        print(f"Scraped {len(data)} tweets")
-        return data
-    except Exception as e:
-        print(f"Error scraping: {e}")
-        print("Falling back to sample data...")
-        return get_sample_data()
+    print(f"Scraping {len(queries)} different topics with {limit} posts each...")
+    all_data = []
+    
+    for query in queries:
+        print(f"\n📡 Query: {query}")
+        data = []
+        try:
+            for i, tweet in enumerate(sntwitter.TwitterSearchScraper(query).get_items()):
+                if i >= limit:
+                    break
+                data.append(tweet.rawContent)
+                if (i + 1) % 50 == 0:
+                    print(f"   Scraped {i + 1} tweets...")
+            print(f"   ✅ Got {len(data)} tweets from this query")
+            all_data.extend(data)
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
+    
+    print(f"\n🎯 Total scraped: {len(all_data)} tweets across all queries")
+    return all_data if all_data else get_expanded_sample_data()
 
 
 def get_sample_data() -> List[str]:
     """Generate sample AI/ML related data for testing"""
-    return [
+    data = [
         "AI is revolutionizing healthcare with predictive analytics and diagnostics!",
         "Machine learning will transform every industry in the next decade.",
         "I'm worried about AI taking over jobs and causing unemployment.",
@@ -103,7 +108,130 @@ def get_sample_data() -> List[str]:
         "Facial recognition AI raises serious privacy concerns.",
         "AI could solve protein folding problems for biology.",
         "Open source AI models are democratizing access to technology.",
-    ] * 4  # Multiply to get ~200 items
+    ]
+    return data * 4  # Multiply to get ~200 items
+
+def get_expanded_sample_data() -> List[str]:
+    """Generate expanded diverse sample data for testing - multiple topics"""
+    all_data = []
+    
+    # AI & Technology
+    ai_data = [
+        "AI is revolutionizing healthcare with predictive analytics and diagnostics!",
+        "Machine learning will transform every industry in the next decade.",
+        "I'm worried about AI taking over jobs and causing unemployment.",
+        "Artificial intelligence is the future of technology and innovation.",
+        "AI ethics need to be discussed more seriously by policymakers.",
+        "Love how AI helps with daily tasks and productivity tools!",
+        "Concerned about AI privacy issues and data security.",
+        "Neural networks and deep learning are fascinating technologies.",
+        "AI automation scares me but also excites me for possibilities.",
+        "GPT models are amazing for productivity and creative tasks.",
+        "The potential of AGI is both exciting and terrifying.",
+        "AI in education could personalize learning for every student.",
+        "Quantum computing combined with AI will solve complex problems.",
+        "AI chatbots are getting too realistic and it's concerning.",
+        "Machine learning helps doctors diagnose diseases faster.",
+    ] * 2
+    
+    # Climate & Environment
+    climate_data = [
+        "Climate change is the biggest threat to humanity right now.",
+        "Renewable energy adoption is increasing globally which is great!",
+        "Deforestation is destroying ecosystems at an alarming rate.",
+        "Electric vehicles are becoming more affordable and popular.",
+        "Carbon emissions need to be reduced immediately.",
+        "Plastic pollution in oceans is a serious environmental crisis.",
+        "Solar and wind power are now cheaper than fossil fuels.",
+        "Rising sea levels will displace millions of coastal residents.",
+        "Climate activists are protesting for urgent government action.",
+        "Sustainable farming practices can help fight climate change.",
+        "Green energy transition is creating millions of new jobs.",
+        "Extreme weather events are becoming more frequent worldwide.",
+        "Biodiversity loss threatens global food security.",
+        "Reducing meat consumption helps lower carbon footprint.",
+        "COP summits are failing to deliver meaningful climate action.",
+    ] * 2
+    
+    # Politics & Elections
+    politics_data = [
+        "The election results will shape the future of the country.",
+        "Political polarization is dividing communities and families.",
+        "Voter turnout needs to increase for true democracy.",
+        "Campaign finance reform is essential for fair elections.",
+        "Social media influences political opinions significantly.",
+        "Young voters are becoming more politically engaged.",
+        "Gerrymandering undermines democratic representation.",
+        "Debates between candidates provide important insights.",
+        "Political parties are announcing their manifestos this week.",
+        "The promise of creating jobs is resonating with voters.",
+        "Healthcare policies are a key election issue.",
+        "Economic policies differ significantly between candidates.",
+        "International relations affect domestic politics greatly.",
+        "Truth in political advertising is often questionable.",
+        "Grassroots movements are changing political landscapes.",
+    ] * 2
+    
+    # Healthcare & Medical
+    healthcare_data = [
+        "New breakthrough in cancer treatment shows promising results.",
+        "Mental health awareness is improving globally.",
+        "Telemedicine is making healthcare more accessible.",
+        "Vaccine development saved millions during the pandemic.",
+        "Healthcare costs are rising beyond many people's means.",
+        "Artificial intelligence is revolutionizing medical diagnostics.",
+        "Preventive healthcare is better than treating diseases.",
+        "Medical research into rare diseases is underfunded.",
+        "Singapore has an excellent public healthcare system.",
+        "Mental health stigma prevents people from seeking help.",
+        "Generic drugs make treatment affordable for patients.",
+        "Health insurance coverage gaps leave many vulnerable.",
+        "Nutrition and exercise prevent chronic diseases.",
+        "Medical technology advances are saving more lives.",
+        "Healthcare worker shortages affect patient care quality.",
+    ] * 2
+    
+    # Business & Economics
+    business_data = [
+        "Startup funding reached record levels this quarter.",
+        "The tech industry is seeing major layoffs recently.",
+        "E-commerce grew exponentially during and after pandemic.",
+        "Remote work is becoming the new norm for many.",
+        "Inflation rates are affecting household budgets globally.",
+        "Cryptocurrency markets are highly volatile and risky.",
+        "Supply chain disruptions impact global commerce.",
+        "Sustainability is becoming a key business priority.",
+        "Small businesses struggle with high interest rates.",
+        "Corporate taxes are being debated in many countries.",
+        "Innovation drives economic growth significantly.",
+        "Monopoly concerns in tech industry are rising.",
+        "Entrepreneurship education should be part of curricula.",
+        "Fair trade practices benefit developing countries.",
+        "Economic inequality continues to widen worldwide.",
+    ] * 2
+    
+    # Education & Learning
+    education_data = [
+        "Online learning platforms are transforming education.",
+        "Student loan debt is a burden for young graduates.",
+        "STEM education prepares students for future jobs.",
+        "Teachers deserve better pay and working conditions.",
+        "Accessibility in education should be a priority.",
+        "Critical thinking skills are more important than memorization.",
+        "Technology integration in classrooms enhances learning.",
+        "Education gaps between rich and poor are widening.",
+        "Vocational training provides valuable career alternatives.",
+        "Research universities drive innovation and discovery.",
+        "Learning multiple languages opens career opportunities.",
+        "Educational resources should be freely available online.",
+        "Mental health support in schools is crucial.",
+        "Education reform is needed to modernize curricula.",
+        "Lifelong learning is essential in changing job markets.",
+    ] * 2
+    
+    all_data = ai_data + climate_data + politics_data + healthcare_data + business_data + education_data
+    print(f"Generated {len(all_data)} diverse sample posts across 6 topic categories")
+    return all_data
 
 
 def analyze_sentiment(texts: List[str]) -> List[Dict]:
@@ -136,10 +264,11 @@ def detect_topics(texts: List[str]) -> tuple:
     # Use lightweight embedding model for speed with GPU if available
     embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
     
-    # Initialize BERTopic with fewer topics for faster processing
+    # Initialize BERTopic - let it automatically determine optimal topic count
     topic_model = BERTopic(
         embedding_model=embedding_model,
-        nr_topics="auto",
+        nr_topics="auto",  # Auto-detect optimal number
+        min_topic_size=10,  # Minimum 10 posts per topic
         verbose=True
     )
     
@@ -183,9 +312,16 @@ def main():
         print("   Set MONGO_URI environment variable to connect to MongoDB Atlas")
         MONGO_URI = "mongodb://localhost:27017/"  # Fallback to local
     
-    # Step 1: Scrape data
-    query = "AI OR artificial intelligence OR machine learning lang:en since:2025-01-01"
-    data = scrape_twitter_data(query, limit=200)
+    # Step 1: Scrape data from multiple topics for diversity
+    queries = [
+        "AI OR artificial intelligence OR machine learning lang:en since:2025-01-01",
+        "climate change OR global warming OR environment lang:en since:2025-01-01", 
+        "election OR politics OR candidate lang:en since:2025-01-01",
+        "healthcare OR medical OR treatment lang:en since:2025-01-01",
+        "business OR economy OR startup lang:en since:2025-01-01",
+        "education OR learning OR school lang:en since:2025-01-01"
+    ]
+    data = scrape_twitter_data(queries, limit=300)  # Increased limit per query
     
     if not data:
         print("No data scraped. Exiting.")
@@ -204,30 +340,49 @@ def main():
         for idx, row in topic_info.iterrows():
             topic_id = int(row['Topic'])
             topic_name = row['Name']
-            # Keep full topic names without truncation
-            if topic_name and isinstance(topic_name, str):
-                # Clean up the name - remove topic ID prefix (e.g., "0_ai_and_is" -> remove "0_")
-                # Remove the ID prefix like "7_" or "0_"
-                if topic_name and len(topic_name.split('_')) > 1:
-                    # Skip the first part (the ID)
-                    words = topic_name.split('_')[1:]
-                else:
-                    words = topic_name.split()
-                
-                # Keep ALL meaningful words, not just first 6
-                clean_words = [w for w in words if w and not w.isdigit()]
-                clean_name = " ".join(clean_words).title()
-                
-                # If still has numbers, remove them
-                clean_name = clean_name.replace("_", " ").strip()
-                
-                # Fallback if empty
-                if not clean_name:
-                    clean_name = f"Topic {topic_id}"
-                    
-                topic_names[topic_id] = clean_name
+            
+            # Try to get better name from actual topic keywords
+            if topic_id != -1:  # Skip the outlier topic
+                try:
+                    # Get the top words for this topic
+                    topic_words = topic_model.get_topic(topic_id)
+                    if topic_words and len(topic_words) > 0:
+                        # Take first 8 keywords and create a name
+                        keywords = [word for word, prob in topic_words[:8]]
+                        # Remove very common words
+                        common_words = {'is', 'are', 'and', 'or', 'the', 'a', 'an', 'with', 'for', 'to', 'of', 'in', 'on', 'at'}
+                        keywords = [k for k in keywords if k.lower() not in common_words]
+                        # Take first 5-6 meaningful keywords
+                        meaningful_keywords = keywords[:6]
+                        if meaningful_keywords:
+                            # Capitalize and join
+                            clean_name = " ".join(meaningful_keywords).title()
+                            topic_names[topic_id] = clean_name
+                        else:
+                            # Fallback to original name processing
+                            if topic_name and isinstance(topic_name, str):
+                                # Clean up the name
+                                words = topic_name.split('_')[1:] if len(topic_name.split('_')) > 1 else topic_name.split()
+                                clean_words = [w for w in words if w and not w.isdigit()]
+                                clean_name = " ".join(clean_words).title()
+                                topic_names[topic_id] = clean_name if clean_name else f"Topic {topic_id}"
+                            else:
+                                topic_names[topic_id] = f"Topic {topic_id}"
+                    else:
+                        topic_names[topic_id] = f"Topic {topic_id}"
+                except Exception as e:
+                    # Fallback: use topic info name
+                    if topic_name and isinstance(topic_name, str):
+                        words = topic_name.split('_')[1:] if len(topic_name.split('_')) > 1 else topic_name.split()
+                        clean_words = [w for w in words if w and not w.isdigit()]
+                        clean_name = " ".join(clean_words).title()
+                        topic_names[topic_id] = clean_name if clean_name else f"Topic {topic_id}"
+                    else:
+                        topic_names[topic_id] = f"Topic {topic_id}"
             else:
-                topic_names[topic_id] = f"Topic {topic_id}"
+                # Outlier topic
+                topic_names[topic_id] = "Outliers / Mixed"
+                
     except Exception as e:
         print(f"Warning: Could not extract topic names: {e}")
         # Fallback to default names

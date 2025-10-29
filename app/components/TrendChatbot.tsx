@@ -43,6 +43,34 @@ export default function TrendChatbot() {
     scrollToBottom();
   }, [messages]);
 
+  const analyzePersonalSentiment = async (text: string) => {
+    try {
+      const response = await fetch("/api/analyze-sentiment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      
+      const data = await response.json();
+      let responseText = generateSentimentResponse(data.positive || 0, data.negative || 0);
+      setMessages(prev => [...prev, { role: "assistant", content: responseText }]);
+    } catch (error) {
+      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I couldn't analyze your sentiment. Please try again." }]);
+    }
+  };
+
+  const generateSentimentResponse = (pos: number, neg: number): string => {
+    if (pos > 0.8 && neg < 0.2) return "That's wonderful! 😄";
+    if (pos > 0.6 && neg < 0.4) return "Glad you're feeling good! 🙂";
+    if (pos >= 0.4 && pos <= 0.6 && neg >= 0.4 && neg <= 0.6) return "I'm here for you 😐";
+    if (pos < 0.4 && neg > 0.6) return "I'm sorry you're feeling this way 😟";
+    if (pos < 0.2 && neg > 0.8) return "Take a deep breath 😠";
+    if (pos < 0.3 && neg < 0.3) return "Would you like to talk more? 😕";
+    if (pos > 0.7 && neg > 0.3) return "Let's work through this together 😬";
+    if (pos < 0.3 && neg > 0.7) return "I'm here with you 😞";
+    return "Tell me more about how you're feeling";
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
@@ -141,6 +169,46 @@ export default function TrendChatbot() {
       return;
     }
 
+    // Check if this is a topic/news sentiment analysis request
+    const isTopicRequest = userQuestion.toLowerCase().includes("news about") || 
+                           userQuestion.toLowerCase().includes("sentiment of") ||
+                           userQuestion.toLowerCase().includes("how people feel about");
+    
+    if (isTopicRequest) {
+      // Extract topic from query
+      const topic = userQuestion.replace(/news about|sentiment of|how people feel about/gi, "").trim();
+      
+      setMessages(prev => [...prev, { role: "assistant", content: `🔍 Searching the web for '${topic}'...` }]);
+      
+      try {
+        const response = await fetch("/api/google-news", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: topic }),
+        });
+
+        const data = await response.json();
+        
+        if (data.trendingTopics && data.trendingTopics.length > 0) {
+          setMessages(prev => [...prev, { role: "assistant", content: `📊 Found ${data.trendingTopics.length} sources. Analyzing sentiment...` }]);
+          setMessages(prev => [...prev, { role: "assistant", content: `**📈 Public Sentiment Analysis: '${topic}'**\n\n✅ Positive: ${data.sentiment?.positivePercent || 0}%\n❌ Negative: ${data.sentiment?.negativePercent || 0}%\n📊 Sources Analyzed: ${data.trendingTopics.length}` }]);
+        } else {
+          setMessages(prev => [...prev, { role: "assistant", content: `❌ Couldn't find enough information about '${topic}'. Try a more popular topic.` }]);
+        }
+      } catch (error) {
+        setMessages(prev => [...prev, { role: "assistant", content: "❌ Error analyzing topic. Please check your internet connection." }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // If not a topic request, treat as personal mood and use sentiment API
+    await analyzePersonalSentiment(userQuestion);
+    setLoading(false);
+    return;
+
+    /* Removed general chat API - using sentiment analysis instead
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -243,6 +311,7 @@ export default function TrendChatbot() {
     } finally {
       setLoading(false);
     }
+    */
   };
 
   return (
@@ -250,10 +319,10 @@ export default function TrendChatbot() {
       {/* Header */}
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          💬 Trend Chatbot
+          💬 Friend - Sentiment Chatbot
         </h3>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          Ask me about trends, sentiment, or run analysis
+          Analyze personal mood or public sentiment on topics
         </p>
       </div>
 
@@ -261,10 +330,10 @@ export default function TrendChatbot() {
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-sm text-zinc-600 dark:text-zinc-400 text-center py-8">
-            👋 Hi! Try asking:<br/>
-            • "What's trending?"<br/>
-            • "Run analysis"<br/>
-            • "Show sentiment"
+            🤖 Hello! I can:<br/>
+            • Analyze your personal mood<br/>
+            • Analyze public sentiment on any topic<br/><br/>
+            Try: "news about AI" or "how do people feel about climate change?"
           </div>
         )}
         {messages.map((msg, idx) => (

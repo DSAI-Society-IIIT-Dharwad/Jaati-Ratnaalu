@@ -35,6 +35,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<string>("");
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
   const [loadingTrends, setLoadingTrends] = useState(true);
 
@@ -257,27 +258,83 @@ export default function Home() {
                 </h2>
                 <button
                   onClick={async () => {
-                    if (loading) return;
-                    setLoading(true);
+                    if (analysisLoading) return;
+                    setAnalysisLoading(true);
+                    setAnalysisProgress("Starting ML models...");
+                    
                     try {
+                      console.log("Starting ML Analysis...");
+                      
+                      // Update progress
+                      setAnalysisProgress("Loading BERTopic model...");
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      setAnalysisProgress("Analyzing posts with sentiment classifier...");
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      setAnalysisProgress("Processing topics and clustering...");
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      setAnalysisProgress("Storing results in MongoDB...");
+                      
                       const response = await fetch("/api/run-analysis", { method: "POST" });
                       const data = await response.json();
+                      
                       if (data.status === "success") {
+                        console.log("✅ Analysis Complete!");
+                        console.log("Results:", data.results);
+                        
+                        setAnalysisProgress("✅ Complete!");
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
                         alert(`✅ Analysis Complete!\n\nTopics: ${data.results.topics}\nProcessed: ${data.results.processed} posts\nPositive: ${data.results.positive}\nNegative: ${data.results.negative}`);
+                        
                         // Refresh the dashboard data
                         window.location.reload();
+                      } else {
+                        console.error("Analysis failed:", data);
+                        setAnalysisProgress("❌ Failed");
+                        alert(`❌ Analysis Failed!\n\n${data.message}\n\n${data.error || ""}`);
                       }
                     } catch (err) {
-                      alert("Error running analysis");
+                      console.error("Error running analysis:", err);
+                      setAnalysisProgress("❌ Error");
+                      alert(`❌ Error: ${err instanceof Error ? err.message : "Failed to run analysis"}`);
                     } finally {
-                      setLoading(false);
+                      setAnalysisLoading(false);
+                      setAnalysisProgress("");
                     }
                   }}
-                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm"
+                  disabled={analysisLoading}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm flex items-center gap-2"
                 >
-                  {loading ? "Running..." : "🔬 Run ML Analysis"}
+                  {analysisLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      </svg>
+                      Running...
+                    </>
+                  ) : (
+                    "🔬 Run ML Analysis"
+                  )}
                 </button>
               </div>
+              
+              {/* Progress Display */}
+              {analysisProgress && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-blue-600" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                    </svg>
+                    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">{analysisProgress}</span>
+                  </div>
+                </div>
+              )}
+              
               <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
                 {trendData.slice(0, 5).map((trend, idx) => (
                   <div key={idx} className="p-4 bg-zinc-50 dark:bg-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors">

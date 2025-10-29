@@ -17,6 +17,8 @@ export async function POST() {
     }
 
     // Run the analysis
+    console.log("Starting ML Analysis... Running: python analyze.py");
+    
     const { stdout, stderr } = await execAsync(
       `python analyze.py`,
       { 
@@ -24,6 +26,10 @@ export async function POST() {
         env: { ...process.env, MONGO_URI: mongoUri }
       }
     );
+    
+    console.log("Analysis completed!");
+    console.log("STDOUT length:", stdout.length);
+    console.log("STDERR:", stderr);
     
     // Parse the output to extract key information
     const output = stdout + stderr;
