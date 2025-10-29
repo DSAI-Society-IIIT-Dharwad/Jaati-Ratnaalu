@@ -2,6 +2,10 @@
 
 A 2-3 hour hackathon project that scrapes live data, analyzes sentiment and topics using pre-trained AI models, and displays insights in a beautiful Next.js dashboard.
 
+# Mobile version also available
+
+A kotlin app present in the mobile-version branch.
+
 ## ✨ Features
 
 - 📡 Scrapes live Twitter data (or uses sample data)
